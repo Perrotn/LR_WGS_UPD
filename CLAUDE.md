@@ -79,16 +79,25 @@ The common SNP BED is currently hard-coded in [A4_TrioMix.sh](A4_TrioMix.sh) (th
 
 ### Sample metadata flow
 
-Starts from `Bioinfo-LR_SampleData.csv` (semicolon-delimited). A2 normalizes it to TSV via `common_scripts/clean_convert_file.sh` → `~/scratch/triomix/clean_sample_data.tsv`. Required columns:
+Canonical input: `~/projects/ctb-rallard/COMMUN/Data_resources/Cohorts/Bioinfo-LR_SampleData.csv` (semicolon-delimited; same CSV the STR pipeline reads). A2 normalizes it to TSV via `common_scripts/clean_convert_file.sh` → `~/scratch/triomix/clean_sample_data.tsv`. Required columns:
 
 | Column | Use |
 |--------|-----|
 | `PatientID` (col 1) | primary key; selects proband rows |
 | `Trio` | family ID — used to find matching father/mother rows |
-| `sing_trio_duo` | must equal `Trio` for the patient to be processed |
+| `sing_trio_duo` | must be `Trio` or `QUAD` for the patient to be considered |
 | `formatted_role` | `proband` / `father` / `mother` — drives BAM lookup |
 
-A2 writes the filtered list of Trio probands to `~/scratch/temp/temp_sample_data_UPD_unique_v{version}.tsv` and the post-rerun-gate todo list to `~/scratch/temp/temp_sample_data_UPD_todo_v{version}.tsv`. The array reads line `${SLURM_ARRAY_TASK_ID}` of the todo TSV.
+A2 runs an inline Python validator (modeled on `LR_WGS_STR/denovo1_run_STR_denovo.sh` lines 52–92) that:
+
+1. Reads the cleaned TSV with `latin-1` decoding (the CSV contains French accented chars in HPO/Commentaire columns).
+2. `.strip()`s every field before comparison.
+3. Accepts probands where `sing_trio_duo` ∈ `{Trio, QUAD}`, `formatted_role == proband`, `PatientID` non-empty, and `Trio` not in `{"", "#N/A", "NA", "N/A", "#NA"}`.
+4. **Requires** the candidate's Trio ID to have at least one row with `formatted_role==father` AND at least one with `formatted_role==mother`. Probands whose Trio is missing a parent row are rejected here, not at runtime.
+
+Skipped probands and reasons go to `~/scratch/temp/temp_sample_data_UPD_skipped_v{version}.tsv` (`PatientID<TAB>reason` — reasons: `empty_PatientID`, `lonely:trio_id_invalid(<value>)`, `incomplete_trio:missing_<father|mother|father+mother>`). A2 also prints a one-line summary to stdout.
+
+Accepted IDs go to `~/scratch/temp/temp_sample_data_UPD_unique_v{version}.tsv`. The post-rerun-gate todo list goes to `~/scratch/temp/temp_sample_data_UPD_todo_v{version}.tsv`. The A3 array reads line `${SLURM_ARRAY_TASK_ID}` of the todo TSV.
 
 BAM resolution (in A4) uses `common_scripts/find_file_PacBioData.sh` against `~/projects/ctb-rallard/COMMUN/PacBioData/S3-Storage`, trying both `{family}/{role}/` and `{patient_ID}/` directory layouts and both `{ID}.GRCh38.haplotagged.bam` and `{ID}.haplotagged.bam` filename variants. If **any** of the three BAMs (proband/father/mother) is missing, A4 deletes the patient's output dir and exits with status 1 — this is intentional cleanup, not an error to suppress.
 

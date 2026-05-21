@@ -75,7 +75,7 @@ Per-task SLURM logs land in the working directory as `slurm_TrioMix_{job_id}_{ta
 
 ## Sample metadata
 
-Canonical input: a sample CSV (semicolon-delimited) such as `Bioinfo-LR_SampleData.csv`. A2 normalizes it to TSV via `common_scripts/clean_convert_file.sh` before parsing.
+Canonical input: `~/projects/ctb-rallard/COMMUN/Data_resources/Cohorts/Bioinfo-LR_SampleData.csv` (semicolon-delimited, the same CSV the STR pipeline reads). A2 normalizes it to TSV via `common_scripts/clean_convert_file.sh` before parsing, then runs an inline Python validator to pick the trio probands.
 
 Columns the pipeline reads:
 
@@ -83,10 +83,17 @@ Columns the pipeline reads:
 |---|---|
 | `PatientID` (col 1) | Primary key. Selects proband rows. |
 | `Trio` | Family ID, used to locate the matching father/mother rows. |
-| `sing_trio_duo` | Must equal `Trio` for the patient to be processed. |
+| `sing_trio_duo` | Must be `Trio` or `QUAD` for the patient to be considered. |
 | `formatted_role` | `proband` / `father` / `mother` — selects the proband to run, then resolves the parent BAMs. |
 
-Effective filter: `sing_trio_duo == "Trio" AND formatted_role == "proband"`.
+Effective acceptance rule:
+
+- `sing_trio_duo ∈ {Trio, QUAD}` AND `formatted_role == "proband"`, AND
+- `PatientID` is non-empty, AND
+- `Trio` is not one of `""`, `"#N/A"`, `"NA"`, `"N/A"`, `"#NA"`, AND
+- the same `Trio` ID has at least one row with `formatted_role == "father"` AND at least one with `formatted_role == "mother"`.
+
+All field comparisons are done after `.strip()` to absorb stray whitespace. Probands that fail any rule are written with their reason to `~/scratch/temp/temp_sample_data_UPD_skipped_v{version}.tsv` (columns: `PatientID`, `reason`).
 
 Trio BAMs are looked up under `~/projects/ctb-rallard/COMMUN/PacBioData/S3-Storage/`, trying both `{family}/{role}/` and `{patient_ID}/` directory layouts and both `{ID}.GRCh38.haplotagged.bam` and `{ID}.haplotagged.bam` filename variants. If any of the three BAMs is missing, A4 deletes the patient's output dir and exits 1.
 

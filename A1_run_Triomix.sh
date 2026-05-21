@@ -1,4 +1,4 @@
-sample_data="${HOME}/projects/ctb-rallard/COMMUN/LR_WGS_STR_Report/Reference_files/Bioinfo-LR_SampleData.csv"
+sample_data="${HOME}/projects/ctb-rallard/COMMUN/Data_resources/Cohorts/Bioinfo-LR_SampleData.csv"
 my_virtualenv="/home/pernic02/projects/ctb-rallard/pernic02/my_virtualenv/bin/activate"
 
 version=0.9
@@ -15,7 +15,7 @@ sbatch --output=slurm_TrioMix_v${version}.out \
 
 
 
-sample_data="${HOME}/projects/ctb-rallard/COMMUN/LR_WGS_STR_Report/Reference_files/Bioinfo-LR_SampleData.csv"
+sample_data="${HOME}/projects/ctb-rallard/COMMUN/Data_resources/Cohorts/Bioinfo-LR_SampleData.csv"
 my_virtualenv="/home/pernic02/projects/ctb-rallard/pernic02/my_virtualenv/bin/activate"
 
 version=0.9.1

@@ -94,6 +94,13 @@ done
 
 family=$(awk 'BEGIN{FS=OFS="\t"}NR>1 && $1=="'$patient_ID'"{print $('${COL_NUM["Trio"]}')}' $sample_data | sort -u)
 
+# A2 normally guarantees a non-empty Trio ID; this guard catches the case where
+# A4 is invoked directly with a proband whose CSV row has no family ID.
+if [[ -z "$family" ]]; then
+    echo "Error, empty Trio for $patient_ID"
+    exit 1
+fi
+
 father_ID=$(awk 'BEGIN{FS=OFS="\t"}NR>1 && $('${COL_NUM["Trio"]}')=="'$family'" && $('${COL_NUM["formatted_role"]}')=="father" {print $1}' $sample_data | sort -u)
 mother_ID=$(awk 'BEGIN{FS=OFS="\t"}NR>1 && $('${COL_NUM["Trio"]}')=="'$family'" && $('${COL_NUM["formatted_role"]}')=="mother" {print $1}' $sample_data | sort -u)
 
